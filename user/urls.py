@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import create_user, list_user
+from .views import users_handler, list_tasks_by_user
 
 urlpatterns = [
-    path('create_user/', create_user, name='create_user'),
-    path('list_users/', list_user, name='list_users'),
+    path('', users_handler),
+    path('<int:id>/tasks/', list_tasks_by_user, name="list_tasks_by_user"),
 ]

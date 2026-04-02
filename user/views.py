@@ -5,12 +5,22 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import IntegrityError
 
 from .models import CustomUser
+from task.models import Task
+
 
 @csrf_exempt
-def create_user(request):
-    if request.method != 'POST': # Verificar se o método da requisição. Se foi feita uma requisição do tipo POST
-        return JsonResponse({"error": "Método não permitido."}, status=405) # 405 (Método não permitido)
+def users_handler(request):
+    if request.method == 'GET': # Verificar se o método da requisição. Se foi feita uma requisição do tipo GET
+        return list_user(request)
     
+    if request.method == 'POST': # Verificar se o método da requisição. Se foi feita uma requisição do tipo POST
+        return create_user(request)
+    
+    return JsonResponse({"error": "Método não permitido."}, status=405) # 405 (Método não permitido)
+
+
+@csrf_exempt
+def create_user(request):    
     # Tratativa de erro, caso a requisição não tenha enviado um body
     try:
         data = json.loads(request.body) # Armazena o body da requisição ( o que o Front está enviando para o back)
@@ -40,10 +50,6 @@ def create_user(request):
       
 @csrf_exempt  
 def list_user(request):
-    # Valida se o método é GET, caso contrário retornar um mensagem de erro, informado que o método de envio da requisição não é permitido (405)
-    if request.method != 'GET':
-        return JsonResponse({"error": "Método não permitido."}, status=405)
-   
     users = CustomUser.objects.all() # Busca todos os usuários já cadastrados
    
     data = [] # Criado para guardar os valores dos usuários e retornar no response
@@ -51,4 +57,32 @@ def list_user(request):
     for user in users:
         data.append({"id": user.id, "name": user.name, "email": user.email}) # Adiciona os valores de cada usuário na lista
             
+    return JsonResponse(data, safe=False, status=200)
+
+def list_tasks_by_user(request, id):
+    if request.method != 'GET':
+        return JsonResponse({"error": "Método não permitido."}, status=405)
+
+    if not id:
+        return JsonResponse({"error": "Parâmetro 'id' é obrigatório."}, status=400)
+    
+    user = CustomUser()
+    
+    try:
+        user = CustomUser.objects.get(id=id)
+    except user.DoesNotExist:
+        return JsonResponse({"error": "Usuário não encontrado."}, status=404)
+    
+    tasks = Task.objects.filter(user=user)
+    
+    data = []
+    
+    for task in tasks:
+        data.append({
+            "id": task.id,
+            "title": task.title,
+            "description": task.description,
+            "status": task.status,
+        })
+    
     return JsonResponse(data, safe=False, status=200)

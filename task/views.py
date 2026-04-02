@@ -8,10 +8,26 @@ from .models import Task
 from user.models import CustomUser
 
 @csrf_exempt
-def create_task(request):
-    if request.method != 'POST':
-        return JsonResponse({"error": "Método não permitido."}, status=405)
+def task_handler(request):
+    if request.method == 'GET':
+        return list_task(request)
+    
+    if request.method == 'POST':
+        return create_task(request)
 
+    return JsonResponse({"Error": "Método não permitido."}, status=405)
+
+@csrf_exempt
+def task_detail_or_delete(request, id):
+    if request.method == 'GET':
+        return task_detailed(request, id)
+    
+    if request.method == 'DELETE':
+        return delete_task(request, id)
+    
+    return JsonResponse({"Error": "Método não permitido."}, status=405)
+
+def create_task(request):
     # Ler JSON
     try:
         data = json.loads(request.body)
@@ -53,9 +69,6 @@ def create_task(request):
         return JsonResponse({"error": "Erro interno do servidor."}, status=500)
 
 def list_task(request):
-    if request.method != 'GET':
-        return JsonResponse({"Error": "Método não permitido."}, status=405)
-    
     data = []
     
     tasks = Task.objects.all()
@@ -68,78 +81,76 @@ def list_task(request):
             "user_id": task.user_id
         })
     
-    return JsonResponse(data, safe=False)
+    return JsonResponse(data, safe=False, status=200)
 
-def list_task_by_user(request):
-    if request.method != 'GET':
-        return JsonResponse({"error": "Método não permitido."}, status=405)
+def task_detailed(request, id):
+    if not id:
+        return JsonResponse({'error': "Paramêtro 'id' é obrigatório."}, status=400)
     
-    user_id = request.GET.get('id')
-
-    if not user_id:
-        return JsonResponse({"error": "Parâmetro 'id' é obrigatório."}, status=400)
-
+    task = Task()
+    
     try:
-        user = CustomUser.objects.get(id=user_id)
-    except ObjectDoesNotExist:
-        return JsonResponse({"error": "Usuário não encontrado."}, status=404)
+        task = Task.objects.get(id=id)
+    except task.DoesNotExist:
+        return JsonResponse({'erro': "Tarefa não encontrada."}, status=404)
     
-    tasks = Task.objects.filter(user=user)
-    
-    data = []
-    
-    for task in tasks:
-        data.append({
-            "id": task.id,
-            "title": task.title,
-            "description": task.description,
-            "status": task.status,
-        })
-
-    
+    data = {
+        "id": task.id,
+        "title": task.title,
+        "description": task.description,
+        "status": task.status,
+        "user_id": task.user_id,
+        "created_at": task.created_at,
+        "completed_at": task.completed_at
+    }
     
     return JsonResponse(data, safe=False, status=200)
 
 @csrf_exempt
-def mark_task_completed(request):
-    if request.method != 'PATCH':
-        return JsonResponse({'error': "Método não permitido."}, status=405)
+def mark_task_completed(request, id):
+    if not id:
+        return JsonResponse({'error': "Paramêtros 'id' é obrigatório."}, status=400)
     
-    task_id = request.GET.get('task_id')
-    
-    if not task_id:
-        return JsonResponse({'error': "Paramêtros 'task' é obrigatório."}, status=400)
-    
-    task = Task.objects.get(id=task_id)
+    task = Task()
     
     try:
+        task = Task.objects.get(id=id)
+    except task.DoesNotExist:
+        return JsonResponse({'error': "Tarefa não encontrada."}, status=404)
+    
+    if task.status != "completed":
         task.status = "completed"
-        task.save()
         
-        return JsonResponse({
-            "id": task.id,
-            "title": task.title,
-            "description": task.description,
-            "status": task.status,
-            "user": task.user_id
-        }, status=200)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-   
-@csrf_exempt 
-def delete_task(request):
-    if request.method != 'DELETE':
-        return JsonResponse({'error': "Método não permitido."}, status=405)
+        try:
+            task.save()
+        except Exception:
+            return JsonResponse({'error': "Erro interno no servidor."}, status=500)
     
-    task_id = request.GET.get('task_id')
+    data = {
+        "id": task.id,
+        "title": task.title,
+        "description": task.description,
+        "status": task.status,
+        "user": task.user_id,
+        "completed_at": task.completed_at
+    }
     
-    if not task_id:
+    return JsonResponse(data, safe=False, status=200)
+
+@csrf_exempt
+def delete_task(request, id):    
+    if not id:
         return JsonResponse({'error': "O paramêtro 'task_id' é obrigatório."}, 400)
     
-    task = Task.objects.get(id=task_id)
+    task = Task()
+    
+    try:
+        task = Task.objects.get(id=id)
+    except task.DoesNotExist:
+        return JsonResponse({'erro': "Tarefa não registrada ou já deletada."}, status=404)
     
     try:
         task.delete()
-        return JsonResponse({'warning': "Deletado com sucesso."}, status=204)
+        return JsonResponse({'warning': "Deletado com sucesso."}, status=204)  
     except Exception:
         return JsonResponse({'erro': "Erro interno no servidor."}, status=500)

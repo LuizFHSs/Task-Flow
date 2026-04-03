@@ -1,6 +1,6 @@
-import json # Para trabalhar com leituras e gravações de arquivos JSON
+import json
 
-from django.http import JsonResponse # Para retornar respostas JSON
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt 
 from django.db import IntegrityError
 
@@ -10,31 +10,28 @@ from task.models import Task
 
 @csrf_exempt
 def users_handler(request):
-    if request.method == 'GET': # Verificar se o método da requisição. Se foi feita uma requisição do tipo GET
+    if request.method == 'GET':
         return list_user(request)
     
-    if request.method == 'POST': # Verificar se o método da requisição. Se foi feita uma requisição do tipo POST
+    if request.method == 'POST':
         return create_user(request)
     
-    return JsonResponse({"error": "Método não permitido."}, status=405) # 405 (Método não permitido)
-
+    return JsonResponse({"error": "Método não permitido."}, status=405)
 
 @csrf_exempt
 def create_user(request):    
-    # Tratativa de erro, caso a requisição não tenha enviado um body
     try:
-        data = json.loads(request.body) # Armazena o body da requisição ( o que o Front está enviando para o back)
+        data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse({"error": "JSON inválido."}, status=400) # Caso não receba um body, retorna mensagem de erro, informando que não foi possível ler o body e retorna para o response o status_code de 400 (erro no lado cliente, ao enviar uma requisição)
+        return JsonResponse({"error": "JSON inválido."}, status=400)
     
     name = data.get("name")
     email = data.get("email")
     
-    if not name or not email: # Se o body estiver vazio ou não conter um contéudo: Nome ou email
-        return JsonResponse({"error": "Nome e email são campos obrigatórios!"}, status=400) # Retorna uma mensagem de erro, informando que não foi passado nenhum valor obrigatório, passando para o response o status_code de 400 (erro no lado do cliente, pois cliente errou ao digitar algo ou passar valores em branco)
+    if not name or not email:
+        return JsonResponse({"error": "Nome e email são campos obrigatórios!"}, status=400)
     
     try:
-        # Salva um usuário, com nome e email fornecidos no body
         user = CustomUser.objects.create(name=name, email=email)
 
         return JsonResponse({
@@ -42,20 +39,20 @@ def create_user(request):
             "name": user.name,
             "email": user.email,
             "created_at": user.created_at
-            }, status=201) # Retornar uma mensagem informando que um usuário foi criado, retornando para o response o status_code de 201 (Todos os passos de conexão, requisição e resposta foram bem sucedidos e usuário foi criado)
+            }, status=201)
     except IntegrityError:
-        return JsonResponse({"error": "Este email já está cadastrado!"}, status=409) # Retornar um erro, informado que não foi possível criar um usuário, retornando para o response o status_code de 409 (erro no lado do servidor, pois não foi possível enviar os dados para o banco de dados)
+        return JsonResponse({"error": "Este email já está cadastrado!"}, status=409)
     except Exception as e:
         return JsonResponse({"error": "Erro interno no servidor.", "error_message": str(e)}, status=500)
       
 @csrf_exempt  
 def list_user(request):
-    users = CustomUser.objects.all() # Busca todos os usuários já cadastrados
+    users = CustomUser.objects.all()
    
-    data = [] # Criado para guardar os valores dos usuários e retornar no response
+    data = []
     
     for user in users:
-        data.append({"id": user.id, "name": user.name, "email": user.email}) # Adiciona os valores de cada usuário na lista
+        data.append({"id": user.id, "name": user.name, "email": user.email})
             
     return JsonResponse(data, safe=False, status=200)
 
@@ -66,11 +63,9 @@ def list_tasks_by_user(request, id):
     if not id:
         return JsonResponse({"error": "Parâmetro 'id' é obrigatório."}, status=400)
     
-    user = CustomUser()
-    
     try:
         user = CustomUser.objects.get(id=id)
-    except user.DoesNotExist:
+    except CustomUser.DoesNotExist:
         return JsonResponse({"error": "Usuário não encontrado."}, status=404)
     
     tasks = Task.objects.filter(user=user)
@@ -83,6 +78,9 @@ def list_tasks_by_user(request, id):
             "title": task.title,
             "description": task.description,
             "status": task.status,
+            "user_id": task.user_id,
+            "created_at": task.created_at,
+            "completed_at": task.completed_at
         })
     
     return JsonResponse(data, safe=False, status=200)

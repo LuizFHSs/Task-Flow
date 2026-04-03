@@ -1,6 +1,7 @@
 import json
 
-from django.http import JsonResponse
+from django.utils import timezone
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -15,7 +16,7 @@ def task_handler(request):
     if request.method == 'POST':
         return create_task(request)
 
-    return JsonResponse({"Error": "Método não permitido."}, status=405)
+    return JsonResponse({"error": "Método não permitido."}, status=405)
 
 @csrf_exempt
 def task_detail_or_delete(request, id):
@@ -25,7 +26,7 @@ def task_detail_or_delete(request, id):
     if request.method == 'DELETE':
         return delete_task(request, id)
     
-    return JsonResponse({"Error": "Método não permitido."}, status=405)
+    return JsonResponse({"error": "Método não permitido."}, status=405)
 
 def create_task(request):
     # Ler JSON
@@ -85,14 +86,12 @@ def list_task(request):
 
 def task_detailed(request, id):
     if not id:
-        return JsonResponse({'error': "Paramêtro 'id' é obrigatório."}, status=400)
-    
-    task = Task()
+        return JsonResponse({'error': "Parâmetro 'id' é obrigatório."}, status=400)
     
     try:
         task = Task.objects.get(id=id)
-    except task.DoesNotExist:
-        return JsonResponse({'erro': "Tarefa não encontrada."}, status=404)
+    except Task.DoesNotExist:
+        return JsonResponse({'error': "Tarefa não encontrada."}, status=404)
     
     data = {
         "id": task.id,
@@ -104,27 +103,31 @@ def task_detailed(request, id):
         "completed_at": task.completed_at
     }
     
-    return JsonResponse(data, safe=False, status=200)
+    return JsonResponse(data, status=200)
 
 @csrf_exempt
 def mark_task_completed(request, id):
+    if request.method != 'PATCH':
+         return JsonResponse({"error": "Método não permitido."}, status=405)
+     
     if not id:
-        return JsonResponse({'error': "Paramêtros 'id' é obrigatório."}, status=400)
-    
-    task = Task()
+        return JsonResponse({'error': "Parâmetro 'id' é obrigatório."}, status=400)
     
     try:
         task = Task.objects.get(id=id)
-    except task.DoesNotExist:
+    except Task.DoesNotExist:
         return JsonResponse({'error': "Tarefa não encontrada."}, status=404)
     
     if task.status != "completed":
         task.status = "completed"
+        task.completed_at = timezone.now()
         
         try:
             task.save()
         except Exception:
             return JsonResponse({'error': "Erro interno no servidor."}, status=500)
+    else:
+        return JsonResponse({'message': "Tarefa já concluída."}, status=200)
     
     data = {
         "id": task.id,
@@ -135,22 +138,20 @@ def mark_task_completed(request, id):
         "completed_at": task.completed_at
     }
     
-    return JsonResponse(data, safe=False, status=200)
+    return JsonResponse(data, status=200)
 
 @csrf_exempt
-def delete_task(request, id):    
+def delete_task(request, id): 
     if not id:
         return JsonResponse({'error': "O paramêtro 'task_id' é obrigatório."}, 400)
     
-    task = Task()
-    
     try:
         task = Task.objects.get(id=id)
-    except task.DoesNotExist:
-        return JsonResponse({'erro': "Tarefa não registrada ou já deletada."}, status=404)
+    except Task.DoesNotExist:
+        return JsonResponse({'error': "Tarefa não registrada ou já deletada."}, status=404)
     
     try:
         task.delete()
-        return JsonResponse({'warning': "Deletado com sucesso."}, status=204)  
+        return HttpResponse(status=204, content_type="application/json")
     except Exception:
-        return JsonResponse({'erro': "Erro interno no servidor."}, status=500)
+        return JsonResponse({'error': "Erro interno no servidor."}, status=500)

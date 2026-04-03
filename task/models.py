@@ -8,5 +8,5 @@ class Task(models.Model):
     status = models.CharField("Condição", max_length=10, blank=False, null=False, default="pending")
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     created_at = models.DateTimeField("Criado em", auto_now_add=True)
-    completed_at = models.DateTimeField("Finalizada em", auto_now=True)
+    completed_at = models.DateTimeField("Finalizada em", blank=True, null=True)
     

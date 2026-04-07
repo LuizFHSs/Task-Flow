@@ -1,3 +1,6 @@
+# Task-Flow
+Projeto de estudo sobre conceitos de Back-end
+
 # Backend - Django (Python)
 
 ### Primeiros passos
@@ -18,6 +21,3 @@
   - **Windows**
     ```shell
     django-admin startproject taskflow .
-
-# Task-Flow
-Projeto de estudo sobre conceitos de Back-end
